@@ -47,11 +47,6 @@ const (
 	crdDiscovererSubPath = "tools/discoverer"
 )
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
 // Add creates a new Operator Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -124,6 +119,36 @@ func (r *ReconcileOperator) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// finalizer := "deploy.hybridapp.io/deleteClusterRoleResources"
+	// if instance.ObjectMeta.DeletionTimestamp.IsZero() {
+	// 	if !containsString(instance.ObjectMeta.Finalizers, finalizer) {
+	// 		klog.Info("Adding finalizer: ", finalizer, " on resource: ", instance.Namespace, "/", instance.Name)
+	// 		instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, finalizer)
+	// 		if err := r.client.Update(context.TODO(), instance); err != nil {
+	// 			klog.Error("Adding finalizer: ", finalizer, " on resource: ", instance.Namespace, "/", instance.Name)
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 	}
+	// } else {
+	// 	if containsString(instance.ObjectMeta.Finalizers, finalizer) {
+	// 		klog.Info("Deleting RBAC resources for: ", instance.Namespace, "/", instance.Name)
+	// 		if err := r.deleteRbacResources(); err != nil {
+	// 			klog.Error("Failed to delete all RBAC resources for: ", instance.Namespace, "/", instance.Name)
+	// 			return reconcile.Result{}, err
+	// 		}
+
+	// 		instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, finalizer)
+	// 		klog.Info("Removing finalizer: ", finalizer, " on resource: ", instance.Namespace, "/", instance.Name)
+	// 		if err := r.client.Update(context.TODO(), instance); err != nil {
+	// 			klog.Error("Failed to remove finalizer: ", finalizer, "error: ", err)
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 	}
+
+	// 	// Stop reconciliation as the item is being deleted
+	// 	return reconcile.Result{}, nil
+	// }
+
 	if instance.Status.Phase == "" {
 		instance.Status.Phase = deployv1alpha1.PhasePending
 	}
@@ -144,6 +169,64 @@ func (r *ReconcileOperator) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
+	// // CreateOrUpdate ServiceAccount
+	// sa := &v1.ServiceAccount{}
+	// sa.Namespace = instance.Namespace
+	// sa.Name = deployv1alpha1.DefaultServiceAccountName
+	// result, err := controllerruntime.CreateOrUpdate(context.TODO(), r.client, sa, func() error {
+	// 	return controllerutil.SetControllerReference(instance, sa, r.scheme)
+	// })
+	// if err != nil {
+	// 	klog.Error("Failed to reconcile ServiceAccount: ", sa.Namespace, "/", sa.Name, ", error: ", err)
+	// 	return reconcile.Result{}, err
+	// }
+	// if result != controllerutil.OperationResultNone {
+	// 	klog.Info("Reconciled ServiceAccount: ", sa.Namespace, "/", sa.Name, ", result: ", result)
+	// }
+
+	// // CreateOrUpdate ClusterRole
+	// cr := &rbacv1.ClusterRole{}
+	// cr.Name = deployv1alpha1.DefaultServiceAccountName // use ServiceAccount name
+	// cr.Rules = clusterRoleRules
+	// result, err = controllerruntime.CreateOrUpdate(context.TODO(), r.client, cr, func() error {
+	// 	return nil
+	// })
+	// if err != nil {
+	// 	klog.Error("Failed to reconcile ClusterRole: ", cr.Name, ", error: ", err)
+	// 	return reconcile.Result{}, err
+	// }
+	// if result != controllerutil.OperationResultNone {
+	// 	klog.Info("Reconciled ClusterRole: ", cr.Name, ", result: ", result)
+	// }
+
+	// // CreateOrUpdate ClusterRoleBinding
+	// crb := &rbacv1.ClusterRoleBinding{}
+	// crb.Name = deployv1alpha1.DefaultServiceAccountName // use ServiceAccount name
+	// crb.Subjects = []rbacv1.Subject{
+	// 	{
+	// 		Kind:      "ServiceAccount",
+	// 		Name:      deployv1alpha1.DefaultServiceAccountName, // match ServiceAccount name
+	// 		Namespace: instance.Namespace,
+	// 	},
+	// }
+	// crb.RoleRef = rbacv1.RoleRef{
+	// 	APIGroup: "rbac.authorization.k8s.io",
+	// 	Kind:     "ClusterRole",
+	// 	Name:     deployv1alpha1.DefaultServiceAccountName, // use ServiceAccount name which matches ClusterRole name
+	// }
+	// result, err = controllerruntime.CreateOrUpdate(context.TODO(), r.client, crb, func() error {
+	// 	return nil //TODO: Need to create a finalizer to remove; cannot be owned by controller - cluster-scoped resource must not have a namespace-scoped owner
+	// })
+	// if err != nil {
+	// 	klog.Error("Failed to reconcile ClusterRoleBinding: ", crb.Name, ", error: ", err)
+	// 	return reconcile.Result{}, err
+	// }
+	// if result != controllerutil.OperationResultNone {
+	// 	klog.Info("Reconciled ClusterRoleBinding: ", crb.Name, ", result: ", result)
+	// }
+
+	// CreateOrUpdate ReplicaSet
+
 	// Define a new ReplicaSet object
 	rs := r.newReplicaSetForCR(instance)
 
@@ -156,7 +239,6 @@ func (r *ReconcileOperator) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Check if this ReplicaSet already exists
 	found := &appsv1.ReplicaSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, found)
-
 	if err != nil && errors.IsNotFound(err) {
 		klog.Info("Creating a new Replicaset: ", rs.Name, " Namespace: ", rs.Namespace)
 		err = r.client.Create(context.TODO(), rs)
@@ -238,7 +320,7 @@ func (r *ReconcileOperator) createReplicaSet(cr *deployv1alpha1.Operator) *appsv
 		rs.Spec.Template.Annotations = cr.Annotations
 	}
 
-	rs.Spec.Template.Spec.ServiceAccountName = deployv1alpha1.DefaultPodServiceAccountName
+	rs.Spec.Template.Spec.ServiceAccountName = deployv1alpha1.DefaultServiceAccountName
 
 	// inherit operator settings if possible
 	opns, err := k8sutil.GetOperatorNamespace()
@@ -443,3 +525,53 @@ func isEqualStringArray(sa1, sa2 []string) bool {
 
 	return len(samap1) == 0
 }
+
+// func (r *ReconcileOperator) deleteRbacResources() error {
+// 	cr := &rbacv1.ClusterRole{}
+// 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deployv1alpha1.DefaultServiceAccountName}, cr)
+// 	if err != nil {
+// 		if errors.IsNotFound(err) {
+// 			return nil
+// 		}
+// 	}
+// 	if err := utils.DeleteClusterRole(r.client, cr); err != nil {
+// 		if !errors.IsNotFound(err) {
+// 			klog.Error("Failed to delete ClusterRole: ", cr.Name, ", error: ", err)
+// 			return err
+// 		}
+// 	}
+
+// 	crb := &rbacv1.ClusterRoleBinding{}
+// 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deployv1alpha1.DefaultServiceAccountName}, crb)
+// 	if err != nil {
+// 		if errors.IsNotFound(err) {
+// 			return nil
+// 		}
+// 	}
+// 	if err := utils.DeleteClusterRoleBinding(r.client, crb); err != nil {
+// 		if !errors.IsNotFound(err) {
+// 			klog.Error("Failed to delete ClusterRoleBinding: ", crb.Name, ", error: ", err)
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
+
+// func containsString(slice []string, s string) bool {
+// 	for _, item := range slice {
+// 		if item == s {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
+
+// func removeString(slice []string, s string) (result []string) {
+// 	for _, item := range slice {
+// 		if item == s {
+// 			continue
+// 		}
+// 		result = append(result, item)
+// 	}
+// 	return
+// }

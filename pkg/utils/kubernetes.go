@@ -95,3 +95,15 @@ func CheckAndInstallCRD(dcli dynamic.Interface, pathname string) error {
 
 	return err
 }
+
+// // DeleteClusterRole deletes clusterrole resources
+// func DeleteClusterRole(cli client.Client, cr *rbacv1.ClusterRole) error {
+// 	klog.Info("Deleting ClusterRole: ", cr.Name)
+// 	return cli.Delete(context.TODO(), cr)
+// }
+
+// // DeleteClusterRoleBinding deletes clusterrolebinding resources
+// func DeleteClusterRoleBinding(cli client.Client, crb *rbacv1.ClusterRoleBinding) error {
+// 	klog.Info("Deleting ClusterRoleBinding: ", crb.Name)
+// 	return cli.Delete(context.TODO(), crb)
+// }
